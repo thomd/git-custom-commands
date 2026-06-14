@@ -57,7 +57,7 @@ die() {
 trap 'die "script failed at line $LINENO"' ERR
 
 find_repos() {
-  find . -type d -name ".git" | sed 's|/\.git$||' | sort
+  find . -type d -name ".git" -not -path '*/.terraform/*' | sed 's|/\.git$||' | sort
 }
 
 has_remote() {
