@@ -23,7 +23,6 @@
 set -euo pipefail
 
 BOLD=$'\e[1m'
-BLUE=$'\e[34m'
 GREEN=$'\e[32m'
 YELLOW=$'\e[33m'
 RED=$'\e[31m'
@@ -31,7 +30,6 @@ DIM=$'\e[2m'
 RESET=$'\e[0m'
 [[ -t 1 ]] || {
   BOLD=
-  BLUE=
   GREEN=
   YELLOW=
   RED=
@@ -48,7 +46,6 @@ show_help() {
   exit 0
 }
 
-info() { printf '%s●%s %s%s%s\n' "$BLUE" "$RESET" "$BOLD" "$*" "$RESET"; }
 ok() { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$*"; }
 warn() { printf '  %s⚠%s %s\n' "$YELLOW" "$RESET" "$*" >&2; }
 err() { printf '  %s✗%s %s\n' "$RED" "$RESET" "$*" >&2; }
