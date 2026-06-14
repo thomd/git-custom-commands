@@ -107,7 +107,7 @@ cmd_fetch() {
     label="$(repo_label "$repo")"
     printf '\n  %s%s%s\n' "$BOLD" "$label" "$RESET"
     if ! has_remote "$repo"; then
-      err "no remote, skipping"
+      printf "  %s✗%s no remote, skipping\n" "$YELLOW" "$RESET" >&2
       ((skipped++)) || true
       continue
     fi
@@ -137,7 +137,7 @@ cmd_pull() {
     label="$(repo_label "$repo")"
     printf '\n  %s%s%s\n' "$BOLD" "$label" "$RESET"
     if ! has_remote "$repo"; then
-      err "no remote, skipping"
+      printf "  %s✗%s no remote, skipping\n" "$YELLOW" "$RESET" >&2
       ((skipped++)) || true
       continue
     fi
