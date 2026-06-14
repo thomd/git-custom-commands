@@ -108,12 +108,12 @@ cmd_fetch() {
     ((found++)) || true
     local label
     label="$(repo_label "$repo")"
+    printf '\n  %s%s%s\n' "$BOLD" "$label" "$RESET"
     if ! has_remote "$repo"; then
-      warn "$label — no remote, skipping"
+      err "no remote, skipping"
       ((skipped++)) || true
       continue
     fi
-    info "$label"
     if git -C "$repo" fetch -p 2>&1 | sed 's/^/    /'; then
       ok "fetched"
       ((fetched++)) || true
@@ -138,12 +138,12 @@ cmd_pull() {
     ((found++)) || true
     local label
     label="$(repo_label "$repo")"
+    printf '\n  %s%s%s\n' "$BOLD" "$label" "$RESET"
     if ! has_remote "$repo"; then
-      warn "$label — no remote, skipping"
+      err "no remote, skipping"
       ((skipped++)) || true
       continue
     fi
-    info "$label"
     if git -C "$repo" pull --rebase 2>&1 | sed 's/^/    /'; then
       ok "pulled"
       ((pulled++)) || true
