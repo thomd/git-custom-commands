@@ -9,15 +9,15 @@
 #
 # OPTIONS
 #
-#    -l, --list                                                 # list all git repos with remote status (default)
-#    -f, --fetch                                                # git fetch for all repos
-#    -p, --pull                                                 # git pull for all repos
+#    -l                                                         # list all git repos with remote status (default)
+#    -f                                                         # git fetch for all repos
+#    -p                                                         # git pull for all repos
 #
 # EXAMPLES
 #
 #    git repos                                                  # list all repos found below CWD
-#    git repos --fetch                                          # fetch all repos
-#    git repos --pull                                           # pull (rebase) all repos
+#    git repos -f                                               # fetch all repos
+#    git repos -p                                               # pull (rebase) all repos
 #
 
 set -euo pipefail
@@ -76,21 +76,30 @@ repo_label() {
 
 cmd_list() {
   local found=0
+  local -a rows=()
+
   while IFS= read -r repo; do
     ((found++)) || true
-    local label
+    local label remote_url
     label="$(repo_label "$repo")"
     if has_remote "$repo"; then
-      local remote_url
       remote_url="$(git -C "$repo" remote get-url "$(git -C "$repo" remote | head -1)" 2>/dev/null || echo "unknown")"
-      printf '  %s%-40s%s %s✓%s %s%s%s\n' "$BOLD" "$label" "$RESET" "$GREEN" "$RESET" "$DIM" "$remote_url" "$RESET"
+      rows+=("  ${label}	✓	${remote_url}")
     else
-      printf '  %s%-40s%s %s✗%s %sno remote%s\n' "$BOLD" "$label" "$RESET" "$RED" "$RESET" "$DIM" "$RESET"
+      rows+=("  ${label}	✗	no remote")
     fi
   done < <(find_repos)
+
   if ((found == 0)); then
     warn "no git repositories found under $(pwd)"
+    return
   fi
+
+  printf '%s\n' "${rows[@]}" | column -t -s $'\t' | \
+    sed \
+      -e "1s/^/\n/" \
+      -e "s/✓\(.*\)/${GREEN}✓${RESET}${DIM}\1${RESET}/g" \
+      -e "s/✗\(.*\)/${RED}✗${RESET}${DIM}\1${RESET}/g"
 }
 
 cmd_fetch() {
@@ -159,16 +168,16 @@ command="list"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h | --help) show_help ;;
-    -l | --list)
+    -h) show_help ;;
+    -l)
       command="list"
       shift
       ;;
-    -f | --fetch)
+    -f)
       command="fetch"
       shift
       ;;
-    -p | --pull)
+    -p)
       command="pull"
       shift
       ;;
@@ -180,8 +189,8 @@ while [[ $# -gt 0 ]]; do
       shift
       break
       ;;
-    -*) die "unknown option: $1 — try 'git repos --help'" ;;
-    *) die "unknown command: $1 — try 'git repos --help'" ;;
+    -*) die "unknown option: $1 — try 'git repos -h'" ;;
+    *) die "unknown command: $1 — try 'git repos -h'" ;;
   esac
 done
 
