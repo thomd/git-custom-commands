@@ -3,17 +3,16 @@ SCRIPTS     := $(wildcard git-*)
 
 .PHONY: install uninstall list
 
-install: ## Install all git-* scripts to ~/bin
+install: ## Install all git-* scripts to ~/bin as symlinks
 	@mkdir -p "$(INSTALL_DIR)"
 	@for script in $(SCRIPTS); do \
-	  cp "$$script" "$(INSTALL_DIR)/$$script"; \
-	  chmod +x "$(INSTALL_DIR)/$$script"; \
-	  echo "  installed $(INSTALL_DIR)/$$script"; \
+	  ln -sf "$(CURDIR)/$$script" "$(INSTALL_DIR)/$$script"; \
+	  echo "  linked $(INSTALL_DIR)/$$script -> $(CURDIR)/$$script"; \
 	done
 
-uninstall: ## Remove all git-* scripts from ~/bin
+uninstall: ## Remove all git-* symlinks from ~/bin
 	@for script in $(SCRIPTS); do \
-	  if [ -f "$(INSTALL_DIR)/$$script" ]; then \
+	  if [ -L "$(INSTALL_DIR)/$$script" ]; then \
 	    rm "$(INSTALL_DIR)/$$script"; \
 	    echo "  removed $(INSTALL_DIR)/$$script"; \
 	  fi; \
