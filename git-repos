@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+
+#
+# Scan subdirectories recursively for git repositories and list, fetch, or pull them.
+#
+# USAGE
+#
+#    git repos [COMMAND] [OPTIONS]                              # default command is `list`
+#
+# COMMANDS
+#
+#    list                                                       # list all git repos with remote status (default)
+#
+# OPTIONS
+#
+#    --fetch                                                    # run `git fetch -p` for all repos
+#    --pull                                                     # run `git pull --rebase` for all repos
+#    -h, --help                                                 # show this help
+#
+# EXAMPLES
+#
+#    git repos                                                  # list all repos found below CWD
+#    git repos list                                             # same as above
+#    git repos --fetch                                          # fetch all repos
+#    git repos --pull                                           # pull (rebase) all repos
+#
+
+set -euo pipefail
+
+BOLD=$'\e[1m'; BLUE=$'\e[34m'; GREEN=$'\e[32m'; YELLOW=$'\e[33m'; RED=$'\e[31m'; DIM=$'\e[2m'; RESET=$'\e[0m'
+[[ -t 1 ]] || { BOLD=; BLUE=; GREEN=; YELLOW=; RED=; DIM=; RESET=; }
+
+show_help() {
+  # shellcheck disable=SC2086
+  awk '/^[^ #]/{c=1}c==0{print $0}' $0 | sed -n '/^#/p' | sed 1d | sed 's/^#/ /g' |
+    perl -pe "s/ #(.*)$/$(tput setaf 0)\1$(tput sgr 0)/" |
+    perl -pe "s/(USAGE|EXAMPLES|COMMANDS|OPTIONS)/$(tput setaf 0)\1$(tput sgr 0)/" |
+    perl -pe "s/\`(.+)\`/$(tput sgr 0 1)\1$(tput sgr 0)/"
+  exit 0
+}
+
+info() { printf '%s●%s %s%s%s\n' "$BLUE" "$RESET" "$BOLD" "$*" "$RESET"; }
+ok()   { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$*"; }
+warn() { printf '  %s⚠%s %s\n' "$YELLOW" "$RESET" "$*" >&2; }
+err()  { printf '  %s✗%s %s\n' "$RED" "$RESET" "$*" >&2; }
+die()  { printf '%s✗%s %s\n' "$RED" "$RESET" "$*" >&2; trap - ERR; exit 1; }
+trap 'die "script failed at line $LINENO"' ERR
+
+find_repos() {
+  find . -type d -name ".git" | sed 's|/\.git$||' | sort
+}
+
+has_remote() {
+  local repo="$1"
+  git -C "$repo" remote | grep -q .
+}
+
+repo_label() {
+  local repo="$1"
+  # Strip leading ./ for cleaner display
+  echo "${repo#./}"
+}
+
+cmd_list() {
+  local found=0
+  while IFS= read -r repo; do
+    (( found++ )) || true
+    local label
+    label="$(repo_label "$repo")"
+    if has_remote "$repo"; then
+      local remote_url
+      remote_url="$(git -C "$repo" remote get-url "$(git -C "$repo" remote | head -1)" 2>/dev/null || echo "unknown")"
+      printf '  %s%-40s%s %s✓%s %s%s%s\n' "$BOLD" "$label" "$RESET" "$GREEN" "$RESET" "$DIM" "$remote_url" "$RESET"
+    else
+      printf '  %s%-40s%s %s✗%s %sno remote%s\n' "$BOLD" "$label" "$RESET" "$RED" "$RESET" "$DIM" "$RESET"
+    fi
+  done < <(find_repos)
+  if (( found == 0 )); then
+    warn "no git repositories found under $(pwd)"
+  fi
+}
+
+cmd_fetch() {
+  local found=0 fetched=0 skipped=0 failed=0
+  while IFS= read -r repo; do
+    (( found++ )) || true
+    local label
+    label="$(repo_label "$repo")"
+    if ! has_remote "$repo"; then
+      warn "$label — no remote, skipping"
+      (( skipped++ )) || true
+      continue
+    fi
+    info "$label"
+    if git -C "$repo" fetch -p 2>&1 | sed 's/^/    /'; then
+      ok "fetched"
+      (( fetched++ )) || true
+    else
+      err "fetch failed"
+      (( failed++ )) || true
+    fi
+  done < <(find_repos)
+  echo ""
+  printf '%s%d fetched%s' "$GREEN" "$fetched" "$RESET"
+  (( skipped > 0 )) && printf '  %s%d skipped%s' "$YELLOW" "$skipped" "$RESET"
+  (( failed  > 0 )) && printf '  %s%d failed%s'  "$RED"    "$failed"  "$RESET"
+  echo ""
+  if (( found == 0 )); then
+    warn "no git repositories found under $(pwd)"
+  fi
+}
+
+cmd_pull() {
+  local found=0 pulled=0 skipped=0 failed=0
+  while IFS= read -r repo; do
+    (( found++ )) || true
+    local label
+    label="$(repo_label "$repo")"
+    if ! has_remote "$repo"; then
+      warn "$label — no remote, skipping"
+      (( skipped++ )) || true
+      continue
+    fi
+    info "$label"
+    if git -C "$repo" pull --rebase 2>&1 | sed 's/^/    /'; then
+      ok "pulled"
+      (( pulled++ )) || true
+    else
+      err "pull failed"
+      (( failed++ )) || true
+    fi
+  done < <(find_repos)
+  echo ""
+  printf '%s%d pulled%s' "$GREEN" "$pulled" "$RESET"
+  (( skipped > 0 )) && printf '  %s%d skipped%s' "$YELLOW" "$skipped" "$RESET"
+  (( failed  > 0 )) && printf '  %s%d failed%s'  "$RED"    "$failed"  "$RESET"
+  echo ""
+  if (( found == 0 )); then
+    warn "no git repositories found under $(pwd)"
+  fi
+}
+
+# --- Argument parsing ---
+
+command="list"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)  show_help ;;
+    --fetch)    command="fetch"; shift ;;
+    --pull)     command="pull";  shift ;;
+    list)       command="list";  shift ;;
+    --)         shift; break ;;
+    -*) die "unknown option: $1 — try 'git repos --help'" ;;
+    *)  die "unknown command: $1 — try 'git repos --help'" ;;
+  esac
+done
+
+case "$command" in
+  list)  cmd_list  ;;
+  fetch) cmd_fetch ;;
+  pull)  cmd_pull  ;;
+esac
