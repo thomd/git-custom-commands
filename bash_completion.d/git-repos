@@ -1,12 +1,4 @@
 # bash completion for git-repos
-#
-# Supports both invocation styles:
-#   git-repos <TAB>     (direct executable)
-#   git repos <TAB>     (git subcommand, via git's completion machinery)
-#
-# Install: source this file from ~/.bashrc, or drop it into the
-# bash-completion directory (e.g. /etc/bash_completion.d/ or
-# "$(brew --prefix)/etc/bash_completion.d/").
 
 _git_repos_completions() {
   local cur prev opts
@@ -14,12 +6,10 @@ _git_repos_completions() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-  opts="-h -l -f -p list"
+  opts="--help --list --fetch --pull"
 
-  # The flags are mutually exclusive and take no arguments, so there is
-  # nothing to complete after one has been given.
   case "$prev" in
-    -h | -l | -f | -p | list)
+    --help | --list | --fetch | --pull)
       return 0
       ;;
   esac
@@ -28,11 +18,8 @@ _git_repos_completions() {
   return 0
 }
 
-# Direct invocation: git-repos
 complete -F _git_repos_completions git-repos
 
-# git subcommand invocation: git repos
-# git's completion calls a function named _git_<subcommand> when available.
 _git_repos() {
   _git_repos_completions
 }

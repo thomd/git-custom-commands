@@ -9,15 +9,16 @@
 #
 # OPTIONS
 #
-#    -l                                                         # list all git repos with remote status (default)
-#    -f                                                         # git fetch for all repos
-#    -p                                                         # git pull for all repos
+#    --list                                # list all git repos with remote status (default)
+#    --fetch                               # git fetch for all repos
+#    --pull                                # git pull for all repos
+#    --help                                # show this help
 #
 # EXAMPLES
 #
-#    git repos                                                  # list all repos found below CWD
-#    git repos -f                                               # fetch all repos
-#    git repos -p                                               # pull (rebase) all repos
+#    git repos                             # list all repos found below CWD
+#    git repos --fetch                     # fetch all repos
+#    git repos --pull                      # pull (rebase) all repos
 #
 
 set -euo pipefail
@@ -92,7 +93,7 @@ cmd_list() {
     return
   fi
 
-  printf '%s\n' "${rows[@]}" | column -t -s $'\t' | \
+  printf '%s\n' "${rows[@]}" | column -t -s $'\t' |
     sed \
       -e "1s/^/\n/" \
       -e "s/✓\(.*\)/${GREEN}✓${RESET}${DIM}\1${RESET}/g" \
@@ -165,29 +166,25 @@ command="list"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h) show_help ;;
-    -l)
+    --help) show_help ;;
+    --list)
       command="list"
       shift
       ;;
-    -f)
+    --fetch)
       command="fetch"
       shift
       ;;
-    -p)
+    --pull)
       command="pull"
-      shift
-      ;;
-    list)
-      command="list"
       shift
       ;;
     --)
       shift
       break
       ;;
-    -*) die "unknown option: $1 — try 'git repos -h'" ;;
-    *) die "unknown command: $1 — try 'git repos -h'" ;;
+    -*) die "unknown option: $1 — try 'git repos --help'" ;;
+    *) die "unknown command: $1 — try 'git repos --help'" ;;
   esac
 done
 
