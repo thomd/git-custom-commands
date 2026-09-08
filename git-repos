@@ -23,14 +23,14 @@
 
 set -euo pipefail
 
-BOLD=$'\e[1m'
+BLUE=$'\e[34m'
 GREEN=$'\e[32m'
 YELLOW=$'\e[33m'
 RED=$'\e[31m'
 DIM=$'\e[2m'
 RESET=$'\e[0m'
 [[ -t 1 ]] || {
-  BOLD=
+  BLUE=
   GREEN=
   YELLOW=
   RED=
@@ -72,6 +72,21 @@ repo_label() {
   echo "${repo#./}"
 }
 
+current_branch() {
+  local repo="$1"
+  git -C "$repo" symbolic-ref --quiet --short HEAD 2>/dev/null ||
+    git -C "$repo" rev-parse --short HEAD 2>/dev/null ||
+    echo "?"
+}
+
+repo_heading() {
+  local repo="$1" label branch
+  label="$(repo_label "$repo")"
+  branch="$(current_branch "$repo")"
+  printf '\n  %s%s%s %s[%s]%s\n' \
+    "$BLUE" "$label" "$RESET" "$GREEN" "$branch" "$RESET"
+}
+
 cmd_list() {
   local found=0
   local -a rows=()
@@ -104,9 +119,7 @@ cmd_fetch() {
   local found=0 fetched=0 skipped=0 failed=0
   while IFS= read -r repo; do
     ((found++)) || true
-    local label
-    label="$(repo_label "$repo")"
-    printf '\n  %s%s%s\n' "$BOLD" "$label" "$RESET"
+    repo_heading "$repo"
     if ! has_remote "$repo"; then
       printf "  %s✗%s no remote, skipping\n" "$YELLOW" "$RESET" >&2
       ((skipped++)) || true
@@ -134,9 +147,7 @@ cmd_pull() {
   local found=0 pulled=0 skipped=0 failed=0
   while IFS= read -r repo; do
     ((found++)) || true
-    local label
-    label="$(repo_label "$repo")"
-    printf '\n  %s%s%s\n' "$BOLD" "$label" "$RESET"
+    repo_heading "$repo"
     if ! has_remote "$repo"; then
       printf "  %s✗%s no remote, skipping\n" "$YELLOW" "$RESET" >&2
       ((skipped++)) || true
