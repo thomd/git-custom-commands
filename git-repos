@@ -9,7 +9,7 @@
 #
 # OPTIONS
 #
-#    --list                                # list all git repos with remote status (default)
+#    --list                                # list all git repos with current branch and remote status (default)
 #    --fetch                               # git fetch for all repos
 #    --pull                                # git pull for all repos
 #    --help                                # show this help
@@ -29,6 +29,8 @@ YELLOW=$'\e[33m'
 RED=$'\e[31m'
 DIM=$'\e[2m'
 RESET=$'\e[0m'
+GREEN_PATTERN=$'\e\\[32m'
+RESET_PATTERN=$'\e\\[0m'
 [[ -t 1 ]] || {
   BLUE=
   GREEN=
@@ -79,6 +81,11 @@ current_branch() {
     echo "?"
 }
 
+has_changes() {
+  local repo="$1"
+  [[ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]]
+}
+
 repo_heading() {
   local repo="$1" label branch
   label="$(repo_label "$repo")"
@@ -93,13 +100,16 @@ cmd_list() {
 
   while IFS= read -r repo; do
     ((found++)) || true
-    local label remote_url
+    local label branch dirty_marker remote_url
     label="$(repo_label "$repo")"
+    branch="$(current_branch "$repo")"
+    dirty_marker=
+    has_changes "$repo" && dirty_marker="*"
     if has_remote "$repo"; then
       remote_url="$(git -C "$repo" remote get-url "$(git -C "$repo" remote | head -1)" 2>/dev/null || echo "unknown")"
-      rows+=("  ${label}	✓	${remote_url}")
+      rows+=("  ${label}	[${branch}${dirty_marker}]	✓	${remote_url}")
     else
-      rows+=("  ${label}	✗	no remote")
+      rows+=("  ${label}	[${branch}${dirty_marker}]	✗	no remote")
     fi
   done < <(find_repos)
 
@@ -110,9 +120,12 @@ cmd_list() {
 
   printf '%s\n' "${rows[@]}" | column -t -s $'\t' |
     sed \
-      -e "1s/^/\n/" \
+      -e "s/\(\[[^]]*\]\)/${GREEN}\1${RESET}/" \
+      -e "s/${GREEN_PATTERN}\(\[[^]]*\)\*\]${RESET_PATTERN}/${GREEN}\1${RED}*${GREEN}]${RESET}/" \
+      -e "s/^  \(.*\)  ${GREEN_PATTERN}/  ${BLUE}\1${RESET}  ${GREEN}/" \
       -e "s/✓\(.*\)/${GREEN}✓${RESET}${DIM}\1${RESET}/g" \
-      -e "s/✗\(.*\)/${RED}✗${RESET}${DIM}\1${RESET}/g"
+      -e "s/✗\(.*\)/${RED}✗${RESET}${DIM}\1${RESET}/g" \
+      -e "1s/^/\n/"
 }
 
 cmd_fetch() {

@@ -13,4 +13,4 @@ make install
 
 | Command     | Description                                                                        |
 | ----------- | ---------------------------------------------------------------------------------- |
-| `git repos` | Recursively scan subdirectories for git repositories and list, fetch, or pull them |
+| `git repos` | Recursively scan subdirectories for git repositories, showing their current branch when listed, or fetch/pull them |
