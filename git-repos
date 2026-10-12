@@ -9,20 +9,22 @@
 #
 # OPTIONS
 #
-#    --list                                # list all git repos with current branch and remote status (default)
-#    --fetch                               # git fetch for all repos
-#    --pull                                # git pull for all repos
+#    --list                                # list all git repos with current branch and remote status
+#    --fetch                               # git fetch for all repos, showing progress
+#    --pull                                # git pull for all repos, showing progress
 #    --help                                # show this help
 #
 # EXAMPLES
 #
-#    git repos                             # list all repos found below CWD
+#    git repos                             # show this help
+#    git repos --list                      # list all repos found below CWD
 #    git repos --fetch                     # fetch all repos
 #    git repos --pull                      # pull (rebase) all repos
 #
 
 set -euo pipefail
 
+BOLD=$'\e[1m'
 BLUE=$'\e[34m'
 GREEN=$'\e[32m'
 YELLOW=$'\e[33m'
@@ -32,6 +34,7 @@ RESET=$'\e[0m'
 GREEN_PATTERN=$'\e\\[32m'
 RESET_PATTERN=$'\e\\[0m'
 [[ -t 1 ]] || {
+  BOLD=
   BLUE=
   GREEN=
   YELLOW=
@@ -43,9 +46,9 @@ RESET_PATTERN=$'\e\\[0m'
 show_help() {
   # shellcheck disable=SC2086
   awk '/^[^ #]/{c=1}c==0{print $0}' $0 | sed -n '/^#/p' | sed 1d | sed 's/^#/ /g' |
-    perl -pe "s/ #(.*)$/$(tput setaf 0)\1$(tput sgr 0)/" |
-    perl -pe "s/(USAGE|EXAMPLES|COMMANDS|OPTIONS)/$(tput setaf 0)\1$(tput sgr 0)/" |
-    perl -pe "s/\`(.+)\`/$(tput sgr 0 1)\1$(tput sgr 0)/"
+    perl -pe "s/ #(.*)$/${DIM}\1${RESET}/" |
+    perl -pe "s/(USAGE|EXAMPLES|COMMANDS|OPTIONS)/${BOLD}\1${RESET}/" |
+    perl -pe "s/\`(.+)\`/${BOLD}\1${RESET}/"
   exit 0
 }
 
@@ -87,11 +90,14 @@ has_changes() {
 }
 
 repo_heading() {
-  local repo="$1" label branch
+  local repo="$1" current="$2" total="$3" label branch dirty_marker
   label="$(repo_label "$repo")"
   branch="$(current_branch "$repo")"
-  printf '\n  %s%s%s %s[%s]%s\n' \
-    "$BLUE" "$label" "$RESET" "$GREEN" "$branch" "$RESET"
+  dirty_marker=
+  has_changes "$repo" && dirty_marker="${RED}*${GREEN}"
+  printf '\n  %s[%d/%d]%s %s%s%s %s[%s%s]%s\n' \
+    "$DIM" "$current" "$total" "$RESET" \
+    "$BLUE" "$label" "$RESET" "$GREEN" "$branch" "$dirty_marker" "$RESET"
 }
 
 cmd_list() {
@@ -129,10 +135,17 @@ cmd_list() {
 }
 
 cmd_fetch() {
-  local found=0 fetched=0 skipped=0 failed=0
+  local found=0 fetched=0 skipped=0 failed=0 total repo
+  local -a repos=()
+
   while IFS= read -r repo; do
+    repos+=("$repo")
+  done < <(find_repos)
+  total=${#repos[@]}
+
+  for repo in "${repos[@]}"; do
     ((found++)) || true
-    repo_heading "$repo"
+    repo_heading "$repo" "$found" "$total"
     if ! has_remote "$repo"; then
       printf "  %s✗%s no remote, skipping\n" "$YELLOW" "$RESET" >&2
       ((skipped++)) || true
@@ -145,7 +158,7 @@ cmd_fetch() {
       err "fetch failed"
       ((failed++)) || true
     fi
-  done < <(find_repos)
+  done
   echo ""
   printf '%s%d fetched%s' "$GREEN" "$fetched" "$RESET"
   ((skipped > 0)) && printf '  %s%d skipped%s' "$YELLOW" "$skipped" "$RESET"
@@ -157,10 +170,17 @@ cmd_fetch() {
 }
 
 cmd_pull() {
-  local found=0 pulled=0 skipped=0 failed=0
+  local found=0 pulled=0 skipped=0 failed=0 total repo
+  local -a repos=()
+
   while IFS= read -r repo; do
+    repos+=("$repo")
+  done < <(find_repos)
+  total=${#repos[@]}
+
+  for repo in "${repos[@]}"; do
     ((found++)) || true
-    repo_heading "$repo"
+    repo_heading "$repo" "$found" "$total"
     if ! has_remote "$repo"; then
       printf "  %s✗%s no remote, skipping\n" "$YELLOW" "$RESET" >&2
       ((skipped++)) || true
@@ -173,7 +193,7 @@ cmd_pull() {
       err "pull failed"
       ((failed++)) || true
     fi
-  done < <(find_repos)
+  done
   echo ""
   printf '%s%d pulled%s' "$GREEN" "$pulled" "$RESET"
   ((skipped > 0)) && printf '  %s%d skipped%s' "$YELLOW" "$skipped" "$RESET"
@@ -186,7 +206,7 @@ cmd_pull() {
 
 # --- Argument parsing ---
 
-command="list"
+command="help"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -213,6 +233,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$command" in
+  help) show_help ;;
   list) cmd_list ;;
   fetch) cmd_fetch ;;
   pull) cmd_pull ;;
